@@ -2,21 +2,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { redis } from '~/config/connectRedis'
 import { StatusCodes } from 'http-status-codes'
 
-const signUp = async (req, res, next) => {
-  try {
-    const userId = uuidv4()
-    await redis.hSet(`user:${userId}`, {
-      id: userId,
-      ...req.body
-    })
-    const user = await redis.hGetAll(`user:${userId}`)
-
-    return res.status(StatusCodes.OK).json(user)
-  } catch (error) {
-    next(error)
-  }
-}
-
 const getAllUser = async (req, res, next) => {
   try {
     // return res.status(StatusCodes.OK).json({ message: 'OK' })
@@ -244,7 +229,6 @@ const updateStudent = async (req, res, next) => {
 
 export const userController = {
   getAllUser,
-  signUp,
   getAssignedBusRoute,
   createBusRoute,
   getBusRouteStops,
