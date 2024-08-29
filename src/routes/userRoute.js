@@ -1,11 +1,13 @@
 import express from 'express'
+import { authController } from '~/controllers/authController'
 import { userController } from '~/controllers/userController'
 
 const router = express.Router()
 
-router.get('/read', userController.getAllUser)
-router.post('/sign-up', userController.signUp)
+router.post('/login', authController.logIn)
+router.post('/sign-up', authController.signUp)
 
+router.get('/read', userController.getAllUser)
 router.post('/create-route', userController.createBusRoute)
 
 // chức năng xem danh sách lịch trình của tài xế
