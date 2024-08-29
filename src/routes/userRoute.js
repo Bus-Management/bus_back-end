@@ -20,4 +20,10 @@ router.post('/bus-route/:routeId/stop/confirm-pickup', userController.confirmStu
 // chức năng xác nhận trả học sinh tại điểm dừng
 router.post('/bus-route/:routeId/stop/confirm-dropoff', userController.confirmStudentDropoff)
 
+// ------------------------------------Student
+// chức năng phụ huynh đăng ký thông tin học sinh
+router.post('/register-student', userController.registerStudent)
+// Route để phụ huynh sửa thông tin học sinh
+router.put('/update-student/:studentId', userController.updateStudent)
+
 export const userRoute = router
