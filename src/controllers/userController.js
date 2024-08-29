@@ -57,30 +57,6 @@ const getAssignedBusRoute = async (req, res, next) => {
   }
 }
 
-// const getAssignedBusRoute = async (req, res, next) => {
-//   try {
-//     const { driverId } = req.params
-
-//     // Lấy thông tin tài xế từ Redis
-//     const driver = await redis.hGetAll(`user:${driverId}`)
-
-//     if (!driver || Object.keys(driver).length === 0) {
-//       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Driver not found' })
-//     }
-
-//     // Lấy thông tin tuyến xe từ Redis dựa trên assigned_route_id
-//     const busRoute = await redis.hGetAll(`bus_routes:${driver.bus_routes_id}`)
-
-//     if (!busRoute || Object.keys(busRoute).length === 0) {
-//       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Assigned bus route not found' })
-//     }
-
-//     return res.status(StatusCodes.OK).json(busRoute)
-//   } catch (error) {
-//     next(error)
-//   }
-// }
-
 const createBusRoute = async (req, res, next) => {
   try {
     // Tạo một ID duy nhất cho tuyến xe
@@ -102,4 +78,101 @@ const createBusRoute = async (req, res, next) => {
   }
 }
 
-export const userController = { getAllUser, signUp, getAssignedBusRoute, createBusRoute }
+const getBusRouteStops = async (req, res, next) => {
+  try {
+    const { routeId } = req.params
+
+    // Lấy thông tin tuyến xe từ Redis
+    const busRoute = await redis.hGetAll(`bus_routes:${routeId}`)
+
+    if (!busRoute || Object.keys(busRoute).length === 0) {
+      return res.status(404).json({ message: 'Bus route not found' })
+    }
+
+    // Lấy danh sách điểm đón/trả học sinh từ trường schedule.stops
+    const stops = JSON.parse(busRoute.schedule).stops
+
+    return res.status(StatusCodes.OK).json({ routeName: busRoute.route_name, stops })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const confirmStudentPickup = async (req, res, next) => {
+  try {
+    const { routeId } = req.params
+    const { studentId, stopIndex } = req.body
+
+    // Lấy thông tin tuyến xe từ Redis
+    const busRoute = await redis.hGetAll(`bus_routes:${routeId}`)
+
+    if (!busRoute || Object.keys(busRoute).length === 0) {
+      return res.status(404).json({ message: 'Bus route not found' })
+    }
+
+    // Parse schedule để lấy danh sách điểm dừng
+    const schedule = JSON.parse(busRoute.schedule)
+    const stops = schedule.stops
+
+    // Kiểm tra xem stopIndex có hợp lệ không
+    if (stopIndex < 0 || stopIndex >= stops.length) {
+      return res.status(400).json({ message: 'Invalid stop index' })
+    }
+
+    // Lưu trạng thái xác nhận đón học sinh tại điểm dừng
+    const pickupKey = `bus_routes:${routeId}:pickups`
+    const pickupField = `${stopIndex}:${studentId}`
+
+    // Đánh dấu học sinh đã được đón tại điểm dừng
+    await redis.hSet(pickupKey, pickupField, 'picked_up')
+
+    return res.status(200).json({
+      message: 'Student pickup confirmed',
+      routeId,
+      stop: stops[stopIndex],
+      studentId
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const confirmStudentDropoff = async (req, res, next) => {
+  try {
+    const { routeId } = req.params
+    const { studentId, stopIndex } = req.body
+
+    // Lấy thông tin tuyến xe từ Redis
+    const busRoute = await redis.hGetAll(`bus_routes:${routeId}`)
+
+    if (!busRoute || Object.keys(busRoute).length === 0) {
+      return res.status(404).json({ message: 'Bus route not found' })
+    }
+
+    // Parse schedule để lấy danh sách điểm dừng
+    const schedule = JSON.parse(busRoute.schedule)
+    const stops = schedule.stops
+
+    // Kiểm tra xem stopIndex có hợp lệ không
+    if (stopIndex < 0 || stopIndex >= stops.length) {
+      return res.status(400).json({ message: 'Invalid stop index' })
+    }
+
+    // Lưu trạng thái xác nhận trả học sinh tại điểm dừng
+    const dropoffKey = `bus_routes:${routeId}:dropoffs`
+    const dropoffField = `${stopIndex}:${studentId}`
+
+    // Đánh dấu học sinh đã được trả tại điểm dừng
+    await redis.hSet(dropoffKey, dropoffField, 'dropped_off')
+
+    return res.status(200).json({
+      message: 'Student dropoff confirmed',
+      stop: stops[stopIndex],
+      studentId
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const userController = { getAllUser, signUp, getAssignedBusRoute, createBusRoute, getBusRouteStops, confirmStudentPickup, confirmStudentDropoff }
