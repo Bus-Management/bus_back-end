@@ -175,4 +175,81 @@ const confirmStudentDropoff = async (req, res, next) => {
   }
 }
 
-export const userController = { getAllUser, signUp, getAssignedBusRoute, createBusRoute, getBusRouteStops, confirmStudentPickup, confirmStudentDropoff }
+const registerStudent = async (req, res, next) => {
+  try {
+    // const { userId } = req.user
+    const { name, age, studentClass, address, parentId } = req.body
+
+    // Tạo một ID duy nhất cho học sinh
+    const studentId = uuidv4()
+
+    // Lưu thông tin học sinh vào Redis dưới dạng một user mới
+    await redis.hSet(`user:${studentId}`, {
+      id: studentId,
+      name,
+      age,
+      class: studentClass,
+      address,
+      parentId: parentId,
+      role: 'Học sinh'
+    })
+
+    // Thêm học sinh vào danh sách học sinh của phụ huynh trong Redis
+    await redis.sAdd(`user:${parentId}:children`, studentId)
+
+    // Trả về thông tin học sinh đã đăng ký
+    const student = await redis.hGetAll(`user:${studentId}`)
+
+    return res.status(201).json({
+      message: 'Student registered successfully',
+      student
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const updateStudent = async (req, res, next) => {
+  try {
+    // const { userId } = req.user // ID của phụ huynh từ token hoặc session
+    const { studentId } = req.params
+    const { name, age, studentClass, address, parentId } = req.body
+
+    // Kiểm tra xem học sinh có thuộc về phụ huynh không
+    const student = await redis.hGetAll(`user:${studentId}`)
+    if (!student || student.parentId !== parentId) {
+      return res.status(StatusCodes.FORBIDDEN).json({ message: 'Access denied' })
+    }
+
+    // Cập nhật thông tin học sinh
+    await redis.hSet(`user:${studentId}`, {
+      ...student,
+      name: name || student.name,
+      age: age || student.age,
+      class: studentClass || student.class,
+      address: address || student.address
+    })
+
+    // Trả về thông tin học sinh đã cập nhật
+    const updatedStudent = await redis.hGetAll(`user:${studentId}`)
+
+    return res.status(200).json({
+      message: 'Student information updated successfully',
+      student: updatedStudent
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const userController = {
+  getAllUser,
+  signUp,
+  getAssignedBusRoute,
+  createBusRoute,
+  getBusRouteStops,
+  confirmStudentPickup,
+  confirmStudentDropoff,
+  registerStudent,
+  updateStudent
+}
