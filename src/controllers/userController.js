@@ -227,6 +227,29 @@ const updateStudent = async (req, res, next) => {
   }
 }
 
+const updateStudentStops = async (req, res, next) => {
+  try {
+    const { studentId } = req.params
+    const { newStops } = req.body
+
+    // Lấy thông tin hiện tại của học sinh
+    const student = await redis.hGetAll(`user:${studentId}`)
+    if (!student || !student.id) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    // Cập nhật điểm đón/trả của học sinh
+    await redis.hSet(`user:${studentId}`, 'stops', JSON.stringify(newStops))
+
+    return res.status(StatusCodes.OK).json({
+      message: 'Student stops updated successfully',
+      stops: newStops
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -235,5 +258,6 @@ export const userController = {
   confirmStudentPickup,
   confirmStudentDropoff,
   registerStudent,
-  updateStudent
+  updateStudent,
+  updateStudentStops
 }

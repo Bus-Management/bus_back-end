@@ -30,5 +30,7 @@ router.post('/bus-route/:routeId/stop/confirm-dropoff', userController.confirmSt
 router.post('/register-student', userController.registerStudent)
 // Route để phụ huynh sửa thông tin học sinh
 router.put('/update-student/:studentId', userController.updateStudent)
+// Route để thay đổi điểm đón/trả của học sinh
+router.put('/stops/:studentId', userController.updateStudentStops)
 
 export const userRoute = router
