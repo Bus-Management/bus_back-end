@@ -1,17 +1,20 @@
 import express from 'express'
 import { authController } from '~/controllers/authController'
 import { userController } from '~/controllers/userController'
+import { checkUserPermission } from '~/middlewares/checkUserPermission'
+import { verifyToken } from '~/middlewares/verifyToken'
 
 const router = express.Router()
 
 router.post('/login', authController.logIn)
 router.post('/sign-up', authController.signUp)
 
+router.use(verifyToken)
 router.get('/read', userController.getAllUser)
 router.post('/create-route', userController.createBusRoute)
 
 // chức năng xem danh sách lịch trình của tài xế
-router.get('/driver/:driverId/assigned-route', userController.getAssignedBusRoute)
+router.get('/driver/:driverId/assigned-route', checkUserPermission('Tài xế'), userController.getAssignedBusRoute)
 
 // chức năng xem danh sách điểm đón/trả học sinh
 router.get('/bus-route/:routeId/stops', userController.getBusRouteStops)
