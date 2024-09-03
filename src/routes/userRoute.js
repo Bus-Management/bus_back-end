@@ -13,6 +13,8 @@ router.post('/sign-up', authController.signUp)
 router.get('/read', userController.getAllUser)
 router.post('/create-route', userController.createBusRoute)
 
+// chức năng xem chi tiet lịch trình của tài xế
+router.get('/detail/bus-route/:id', userController.getDetailBusRoute)
 // chức năng xem danh sách lịch trình của tài xế
 router.get('/driver/:driverId/assigned-route', userController.getAssignedBusRoute)
 // router.get('/driver/:driverId/assigned-route', checkUserPermission('Tài xế'), userController.getAssignedBusRoute)
@@ -35,5 +37,6 @@ router.post('/register-route', userController.registerRoute)
 router.put('/update-student/:studentId', userController.updateStudent)
 // Route để thay đổi điểm đón/trả của học sinh
 router.put('/stops/:studentId', userController.updateStudentStops)
+router.get('/student/:id', userController.getDetailUser)
 
 export const userRoute = router

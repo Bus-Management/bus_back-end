@@ -285,6 +285,32 @@ const registerRoute = async (req, res, next) => {
   }
 }
 
+const getDetailUser = async (req, res, next) => {
+  try {
+    const userId = req.params.id
+    const student = await redis.hGetAll(`user:${userId}`)
+    if (!student) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Student not found' })
+    }
+    res.status(StatusCodes.OK).json(student)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getDetailBusRoute = async (req, res, next) => {
+  try {
+    const busRouteId = req.params.id
+    const route = await redis.hGetAll(`bus_routes:${busRouteId}`)
+    if (!route) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Route not found' })
+    }
+    res.status(StatusCodes.OK).json(JSON.parse(route.data))
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -295,5 +321,7 @@ export const userController = {
   registerStudent,
   updateStudent,
   updateStudentStops,
-  registerRoute
+  registerRoute,
+  getDetailUser,
+  getDetailBusRoute
 }
