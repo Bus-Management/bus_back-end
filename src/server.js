@@ -5,6 +5,7 @@ import { APIs } from './routes'
 import { corsOptions } from './config/cors'
 import { redis } from './config/connectRedis'
 import cookieParser from 'cookie-parser'
+import { errorHandlingMiddleware } from './middlewares/errorHandlingMiddleware'
 
 const app = express()
 
@@ -18,6 +19,8 @@ app.use(cookieParser())
 app.use(express.json({ limit: '10kb' }))
 
 app.use('/api', APIs)
+
+app.use(errorHandlingMiddleware)
 
 app.listen(port, hostname, () => {
   console.log(`Hello, I am running at ${hostname}:${port}`)
