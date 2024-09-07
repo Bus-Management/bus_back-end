@@ -14,6 +14,9 @@ router.post('/logout', authController.logout)
 router.get('/read', userController.getAllUser)
 router.post('/create-route', userController.createBusRoute)
 
+// chức năng xem tất cả các route
+router.get('/bus-route', userController.getAllBusRoutes)
+
 // chức năng xem chi tiet lịch trình của tài xế
 router.get('/detail/bus-route/:id', userController.getDetailBusRoute)
 // chức năng xem danh sách lịch trình của tài xế
