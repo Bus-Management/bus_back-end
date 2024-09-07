@@ -339,6 +339,26 @@ const updateBusRoute = async (req, res, next) => {
   }
 }
 
+const getAllBusRoutes = async (req, res, next) => {
+  try {
+    // Lấy tất cả các khóa bus_routes từ Redis
+    const busRouteKeys = await redis.keys('bus_routes:*')
+
+    // // Khởi tạo mảng để lưu trữ các tuyến xe của tài xế
+    const allRoutes = []
+
+    // Lặp qua từng khóa để kiểm tra driver_id
+    for (const key of busRouteKeys) {
+      const busRoute = await redis.hGetAll(key)
+      allRoutes.push(JSON.parse(busRoute.data))
+    }
+
+    return res.status(StatusCodes.OK).json(allRoutes)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -352,5 +372,6 @@ export const userController = {
   registerRoute,
   getDetailUser,
   getDetailBusRoute,
-  updateBusRoute
+  updateBusRoute,
+  getAllBusRoutes
 }
