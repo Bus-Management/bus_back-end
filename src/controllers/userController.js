@@ -311,6 +311,34 @@ const getDetailBusRoute = async (req, res, next) => {
   }
 }
 
+const updateBusRoute = async (req, res, next) => {
+  try {
+    const { routeId } = req.params
+    const updatedData = req.body
+
+    // Kiểm tra xem tuyến đường có tồn tại trong Redis hay không
+    const routeExists = await redis.exists(`bus_routes:${routeId}`)
+    if (!routeExists) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Tuyến đường không tồn tại' })
+    }
+
+    // Lấy dữ liệu tuyến đường hiện tại từ Redis
+    const currentRoute = await redis.hGetAll(`bus_routes:${routeId}`)
+
+    const updateRoute = {
+      ...JSON.parse(currentRoute.data),
+      ...updatedData
+    }
+
+    // // Lưu dữ liệu cập nhật vào Redis
+    await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(updateRoute))
+
+    res.status(StatusCodes.OK).json(updateRoute)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -323,5 +351,6 @@ export const userController = {
   updateStudentStops,
   registerRoute,
   getDetailUser,
-  getDetailBusRoute
+  getDetailBusRoute,
+  updateBusRoute
 }

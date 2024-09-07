@@ -15,7 +15,7 @@ const signUp = async (req, res, next) => {
       password: await bcrypt.hash(req.body.password, 10)
     })
     // Lưu ánh xạ userName đến userId
-    await redis.hSet('usernames', req.body.userName, userId)
+    await redis.hSet('phones', req.body.phone, userId)
 
     const user = await redis.hGetAll(`user:${userId}`)
 
@@ -27,24 +27,28 @@ const signUp = async (req, res, next) => {
 
 const logIn = async (req, res, next) => {
   try {
-    const { userName, password } = req.body
+    const { phone, password } = req.body
 
-    // Lấy userId từ userName
-    const userId = await redis.hGet('usernames', userName)
+    if (!phone || !password) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Tài khoản và mật khẩu không được trống' })
+    }
+
+    // Lấy userId từ phone
+    const userId = await redis.hGet('phones', phone)
     if (!userId) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Invalid username or password' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Tài khoản không tồn tại' })
     }
 
     // Lấy thông tin người dùng từ Redis bằng userId
     const user = await redis.hGetAll(`user:${userId}`)
     if (!user || !user.password) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Invalid username or password' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Invalid username or password' })
     }
 
     // Kiểm tra mật khẩu
     const isMatch = await bcrypt.compare(password, user.password)
     if (!isMatch) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Invalid username or password' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Sai mật khẩu' })
     }
 
     // Tạo token
@@ -63,9 +67,10 @@ const logIn = async (req, res, next) => {
     if (process.env.BUILD_MODE === 'production') cookieOptions.secure = true
 
     res.cookie('token', token, cookieOptions)
-
+    user.password = undefined
     return res.status(200).json({
       message: 'Login successful',
+      user,
       token
     })
   } catch (error) {
@@ -73,4 +78,8 @@ const logIn = async (req, res, next) => {
   }
 }
 
-export const authController = { signUp, logIn }
+const logout = async (req, res, next) => {
+  res.clearCookie('token').status(StatusCodes.OK).json({ message: 'Đăng xuất thành công' })
+}
+
+export const authController = { signUp, logIn, logout }

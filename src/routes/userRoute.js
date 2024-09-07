@@ -8,6 +8,7 @@ const router = express.Router()
 
 router.post('/login', authController.logIn)
 router.post('/sign-up', authController.signUp)
+router.post('/logout', authController.logout)
 
 // router.use(verifyToken)
 router.get('/read', userController.getAllUser)
@@ -21,6 +22,9 @@ router.get('/driver/:driverId/assigned-route', userController.getAssignedBusRout
 
 // chức năng xem danh sách điểm đón/trả học sinh
 router.get('/bus-route/:routeId/stops', userController.getBusRouteStops)
+
+// chức năng chỉnh sửa thông tin tuyến đường
+router.put('/bus-route/:routeId', userController.updateBusRoute)
 
 // chức năng xác nhận đón học sinh tại điểm dừng
 router.post('/bus-route/:routeId/stop/confirm-pickup', userController.confirmStudentPickup)
