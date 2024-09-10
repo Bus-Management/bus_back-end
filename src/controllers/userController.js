@@ -359,6 +359,45 @@ const getAllBusRoutes = async (req, res, next) => {
   }
 }
 
+const getAllDrivers = async (req, res, next) => {
+  try {
+    // Lấy tất cả khóa user
+    const allUserKeys = await redis.keys('user:*')
+    const filteredUsers = allUserKeys.filter((user) => !user.includes('children'))
+
+    const drivers = []
+
+    for (const key of filteredUsers) {
+      const user = await redis.hGetAll(key)
+      user.password = undefined
+      if (user.role === 'Tài xế') {
+        drivers.push(user)
+      }
+    }
+
+    return res.status(StatusCodes.OK).json(drivers)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const deleteBusRoute = async (req, res, next) => {
+  try {
+    const { routeId } = req.params
+
+    const routeExists = await redis.exists(`bus_routes:${routeId}`)
+    if (!routeExists) {
+      return res.status(404).json({ message: 'Route not found' })
+    }
+
+    await redis.del(`bus_routes:${routeId}`)
+
+    return res.status(StatusCodes.OK).json({ message: 'Xóa thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -373,5 +412,7 @@ export const userController = {
   getDetailUser,
   getDetailBusRoute,
   updateBusRoute,
-  getAllBusRoutes
+  getAllBusRoutes,
+  getAllDrivers,
+  deleteBusRoute
 }
