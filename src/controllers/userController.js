@@ -4,7 +4,17 @@ import { StatusCodes } from 'http-status-codes'
 
 const getAllUser = async (req, res, next) => {
   try {
-    // return res.status(StatusCodes.OK).json({ message: 'OK' })
+    const userKeys = await redis.keys('user:*')
+
+    const allUsers = []
+    const newUserKeys = userKeys.filter((item) => !item.includes('children'))
+
+    for (const key of newUserKeys) {
+      const user = await redis.hGetAll(key)
+      user.password = undefined
+      allUsers.push(user)
+    }
+    return res.status(StatusCodes.OK).json(allUsers)
   } catch (error) {
     throw error
   }
@@ -161,7 +171,7 @@ const confirmStudentDropoff = async (req, res, next) => {
 const registerStudent = async (req, res, next) => {
   try {
     // const { userId } = req.user
-    const { name, age, studentClass, address, parentId } = req.body
+    const { fullName, age, studentClass, address, parentId } = req.body
 
     // Tạo một ID duy nhất cho học sinh
     const studentId = uuidv4()
@@ -169,7 +179,7 @@ const registerStudent = async (req, res, next) => {
     // Lưu thông tin học sinh vào Redis dưới dạng một user mới
     await redis.hSet(`user:${studentId}`, {
       id: studentId,
-      name,
+      fullName,
       age,
       class: studentClass,
       address,
@@ -398,6 +408,48 @@ const deleteBusRoute = async (req, res, next) => {
   }
 }
 
+const getAllParents = async (req, res, next) => {
+  try {
+    const allUserKeys = await redis.keys('user:*')
+    const filteredUsers = allUserKeys.filter((user) => !user.includes('children'))
+
+    const parents = []
+
+    for (const key of filteredUsers) {
+      const user = await redis.hGetAll(key)
+      user.password = undefined
+      if (user.role === 'Phụ huynh') {
+        parents.push(user)
+      }
+    }
+
+    return res.status(StatusCodes.OK).json(parents)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getAllChildrens = async (req, res, next) => {
+  try {
+    const allUserKeys = await redis.keys('user:*')
+    const filteredUsers = allUserKeys.filter((user) => !user.includes('children'))
+
+    const childrens = []
+
+    for (const key of filteredUsers) {
+      const user = await redis.hGetAll(key)
+      user.password = undefined
+      if (user.role === 'Học sinh') {
+        childrens.push(user)
+      }
+    }
+
+    return res.status(StatusCodes.OK).json(childrens)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -414,5 +466,7 @@ export const userController = {
   updateBusRoute,
   getAllBusRoutes,
   getAllDrivers,
-  deleteBusRoute
+  deleteBusRoute,
+  getAllParents,
+  getAllChildrens
 }
