@@ -19,6 +19,10 @@ router.get('/bus-route', userController.getAllBusRoutes)
 
 // chức năng xem tất cả tài xế
 router.get('/driver', userController.getAllDrivers)
+// chức năng xem tất cả tài xế
+router.get('/parent', userController.getAllParents)
+// chức năng xem tất cả tài xế
+router.get('/children', userController.getAllChildrens)
 // chức năng xóa tuyến xe
 router.delete('/delete-bus-route/:routeId', userController.deleteBusRoute)
 
