@@ -13,6 +13,8 @@ router.post('/logout', authController.logout)
 // router.use(verifyToken)
 router.get('/read', userController.getAllUser)
 router.post('/create-route', userController.createBusRoute)
+router.delete('/delete-user/:userId', userController.deleteUser)
+router.put('/update-user/:userId', userController.updateUser)
 
 // chức năng xem tất cả các route
 router.get('/bus-route', userController.getAllBusRoutes)

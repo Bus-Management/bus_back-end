@@ -16,10 +16,7 @@ const signUp = async (req, res, next) => {
     })
     // Lưu ánh xạ userName đến userId
     await redis.hSet('phones', req.body.phone, userId)
-
-    const user = await redis.hGetAll(`user:${userId}`)
-
-    return res.status(StatusCodes.OK).json(user)
+    return res.status(StatusCodes.OK).json({ message: 'Tạo tài khoản thành công' })
   } catch (error) {
     next(error)
   }
