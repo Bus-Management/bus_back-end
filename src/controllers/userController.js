@@ -450,6 +450,43 @@ const getAllChildrens = async (req, res, next) => {
   }
 }
 
+const deleteUser = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+
+    const routeExists = await redis.exists(`user:${userId}`)
+    if (!routeExists) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    await redis.del(`user:${userId}`)
+
+    return res.status(StatusCodes.OK).json({ message: 'Xóa thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const updateUser = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const updatedData = req.body
+
+    const userExists = await redis.exists(`user:${userId}`)
+    if (!userExists) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Người dùng không tồn tại' })
+    }
+
+    await redis.hSet(`user:${userId}`, {
+      ...updatedData
+    })
+
+    res.status(StatusCodes.OK).json({ message: 'Cập nhật thông tin thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   getAssignedBusRoute,
@@ -468,5 +505,7 @@ export const userController = {
   getAllDrivers,
   deleteBusRoute,
   getAllParents,
-  getAllChildrens
+  getAllChildrens,
+  deleteUser,
+  updateUser
 }
