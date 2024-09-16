@@ -37,7 +37,7 @@ router.get('/driver/:driverId/assigned-route', userController.getAssignedBusRout
 // chức năng xem danh sách điểm đón/trả học sinh
 router.get('/bus-route/:routeId/stops', userController.getBusRouteStops)
 
-// chức năng chỉnh sửa thông tin tuyến đường
+// chức năng chỉnh sửa thông tin tuyến xe
 router.put('/bus-route/:routeId', userController.updateBusRoute)
 
 // chức năng xác nhận đón học sinh tại điểm dừng
@@ -49,9 +49,9 @@ router.post('/bus-route/:routeId/stop/confirm-dropoff', userController.confirmSt
 // ------------------------------------Student
 // chức năng phụ huynh đăng ký thông tin học sinh
 router.post('/register-student', userController.registerStudent)
-// chức năng phụ huynh đăng ký tuyến đường cho học sinh
+// chức năng phụ huynh đăng ký tuyến xe cho học sinh
 router.post('/register-route', userController.registerRoute)
-// chức năng phụ huynh hủy đăng ký tuyến đường
+// chức năng phụ huynh hủy đăng ký tuyến xe
 router.post('/unregister-route', userController.unRegisterRoute)
 // Route để phụ huynh sửa thông tin học sinh
 router.put('/update-student/:studentId', userController.updateStudent)

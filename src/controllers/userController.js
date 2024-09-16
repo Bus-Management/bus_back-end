@@ -58,7 +58,7 @@ const createBusRoute = async (req, res, next) => {
     // Tạo một ID duy nhất cho tuyến xe
     const routeId = uuidv4()
 
-    // Tạo cấu trúc dữ liệu tuyến đường mới
+    // Tạo cấu trúc dữ liệu tuyến xe mới
     const newRoute = {
       id: routeId,
       ...req.body,
@@ -68,7 +68,7 @@ const createBusRoute = async (req, res, next) => {
     // Lưu từng trường của newRoute vào Redis dưới dạng các field riêng biệt
     await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(newRoute))
 
-    return res.status(201).json({ message: 'Tạo tuyến đường thành công', route: newRoute })
+    return res.status(201).json({ message: 'Tạo tuyến xe thành công', route: newRoute })
   } catch (error) {
     next(error)
   }
@@ -253,14 +253,14 @@ const registerRoute = async (req, res, next) => {
   const { routeId, studentId } = req.body
 
   try {
-    // Lấy dữ liệu tuyến đường từ Redis
+    // Lấy dữ liệu tuyến xe từ Redis
     const routeData = await redis.hGetAll(`bus_routes:${routeId}`)
 
     if (!routeData) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Route not found' })
     }
 
-    // Chuyển đổi dữ liệu tuyến đường sang JSON
+    // Chuyển đổi dữ liệu tuyến xe sang JSON
     let route = JSON.parse(routeData.data)
 
     // // Kiểm tra xem học sinh đã đăng ký chưa
@@ -272,10 +272,11 @@ const registerRoute = async (req, res, next) => {
 
     const hasRouteId = await redis.hGetAll(`user:${studentId}`)
     if (hasRouteId && hasRouteId.routeId) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: `Học sinh này đã đăng ký tuyến ${route.route_name}` })
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Học sinh này đã đăng ký tuyến xe' })
     }
+    await redis.hSet(`user:${studentId}`, { ...hasRouteId, routeId })
 
-    // // Thêm học sinh mới vào danh sách students của tuyến đường
+    // // Thêm học sinh mới vào danh sách students của tuyến xe
     route.students.push({
       student_id: studentId
     })
@@ -303,7 +304,7 @@ const unRegisterRoute = async (req, res, next) => {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Route not found' })
     }
 
-    // Chuyển đổi dữ liệu tuyến đường từ JSON sang obj JS
+    // Chuyển đổi dữ liệu tuyến xe từ JSON sang obj JS
     let route = JSON.parse(routeData.data)
     if (!route || !route.id) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Route not found' })
@@ -351,13 +352,13 @@ const updateBusRoute = async (req, res, next) => {
     const { routeId } = req.params
     const updatedData = req.body
 
-    // Kiểm tra xem tuyến đường có tồn tại trong Redis hay không
+    // Kiểm tra xem tuyến xe có tồn tại trong Redis hay không
     const routeExists = await redis.exists(`bus_routes:${routeId}`)
     if (!routeExists) {
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Tuyến đường không tồn tại' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Tuyến xe không tồn tại' })
     }
 
-    // Lấy dữ liệu tuyến đường hiện tại từ Redis
+    // Lấy dữ liệu tuyến xe hiện tại từ Redis
     const currentRoute = await redis.hGetAll(`bus_routes:${routeId}`)
 
     const updateRoute = {
@@ -500,6 +501,12 @@ const updateUser = async (req, res, next) => {
     const userExists = await redis.exists(`user:${userId}`)
     if (!userExists) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Người dùng không tồn tại' })
+    }
+
+    if (updatedData.phone) {
+      await redis.hSet('phones', updatedData.phone, userId)
+      const user = await redis.hGetAll(`user:${userId}`)
+      await redis.hDel('phones', user.phone)
     }
 
     await redis.hSet(`user:${userId}`, {
