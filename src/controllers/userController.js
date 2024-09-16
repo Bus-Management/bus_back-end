@@ -68,7 +68,7 @@ const createBusRoute = async (req, res, next) => {
     // Lưu từng trường của newRoute vào Redis dưới dạng các field riêng biệt
     await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(newRoute))
 
-    res.status(201).json({ message: 'Route created successfully', route: newRoute })
+    return res.status(201).json({ message: 'Tạo tuyến đường thành công', route: newRoute })
   } catch (error) {
     next(error)
   }
@@ -171,7 +171,6 @@ const confirmStudentDropoff = async (req, res, next) => {
 const registerStudent = async (req, res, next) => {
   try {
     // const { userId } = req.user
-    const { fullName, age, studentClass, address, parentId } = req.body
 
     // Tạo một ID duy nhất cho học sinh
     const studentId = uuidv4()
@@ -179,22 +178,18 @@ const registerStudent = async (req, res, next) => {
     // Lưu thông tin học sinh vào Redis dưới dạng một user mới
     await redis.hSet(`user:${studentId}`, {
       id: studentId,
-      fullName,
-      age,
-      class: studentClass,
-      address,
-      parentId: parentId,
+      ...req.body,
       role: 'Học sinh'
     })
 
     // Thêm học sinh vào danh sách học sinh của phụ huynh trong Redis
-    await redis.sAdd(`user:${parentId}:children`, studentId)
+    await redis.sAdd(`user:${req.body.parentId}:children`, studentId)
 
     // Trả về thông tin học sinh đã đăng ký
     const student = await redis.hGetAll(`user:${studentId}`)
 
     return res.status(201).json({
-      message: 'Student registered successfully',
+      message: 'Đăng ký tài khoản thành công',
       student
     })
   } catch (error) {
@@ -206,28 +201,24 @@ const updateStudent = async (req, res, next) => {
   try {
     // const { userId } = req.user // ID của phụ huynh từ token hoặc session
     const { studentId } = req.params
-    const { name, age, studentClass, address, parentId } = req.body
 
     // Kiểm tra xem học sinh có thuộc về phụ huynh không
     const student = await redis.hGetAll(`user:${studentId}`)
-    if (!student || student.parentId !== parentId) {
+    if (!student || student.parentId !== req.body.parentId) {
       return res.status(StatusCodes.FORBIDDEN).json({ message: 'Access denied' })
     }
 
     // Cập nhật thông tin học sinh
     await redis.hSet(`user:${studentId}`, {
-      ...student,
-      name: name || student.name,
-      age: age || student.age,
-      class: studentClass || student.class,
-      address: address || student.address
+      ...req.body,
+      role: 'Học sinh'
     })
 
     // Trả về thông tin học sinh đã cập nhật
     const updatedStudent = await redis.hGetAll(`user:${studentId}`)
 
     return res.status(200).json({
-      message: 'Student information updated successfully',
+      message: 'Sửa thông tin thành công',
       student: updatedStudent
     })
   } catch (error) {
@@ -259,7 +250,7 @@ const updateStudentStops = async (req, res, next) => {
 }
 
 const registerRoute = async (req, res, next) => {
-  const { routeId, studentId, pickupStopId, dropOffStopId } = req.body
+  const { routeId, studentId } = req.body
 
   try {
     // Lấy dữ liệu tuyến đường từ Redis
@@ -272,24 +263,58 @@ const registerRoute = async (req, res, next) => {
     // Chuyển đổi dữ liệu tuyến đường sang JSON
     let route = JSON.parse(routeData.data)
 
-    // Kiểm tra xem học sinh đã đăng ký chưa
+    // // Kiểm tra xem học sinh đã đăng ký chưa
     const existingStudent = route.students.find((student) => student.student_id === studentId)
 
     if (existingStudent) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Student already registered on this route' })
     }
 
-    // Thêm học sinh mới vào danh sách students của tuyến đường
+    const hasRouteId = await redis.hGetAll(`user:${studentId}`)
+    if (hasRouteId && hasRouteId.routeId) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: `Học sinh này đã đăng ký tuyến ${route.route_name}` })
+    }
+
+    // // Thêm học sinh mới vào danh sách students của tuyến đường
     route.students.push({
-      student_id: studentId,
-      pickup_stop_id: pickupStopId,
-      dropOff_stop_id: dropOffStopId
+      student_id: studentId
     })
 
-    // Cập nhật lại dữ liệu tuyến đường trong Redis
     await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(route))
 
-    res.status(200).json({ message: 'Student registered successfully' })
+    return res.status(200).json({ message: 'Đăng ký tuyến xe thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const unRegisterRoute = async (req, res, next) => {
+  try {
+    const { studentId, routeId } = req.body
+
+    const student = await redis.hGetAll(`user:${studentId}`)
+    if (!student || !student.id) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Student not found' })
+    }
+
+    const routeData = await redis.hGetAll(`bus_routes:${routeId}`)
+
+    if (!routeData) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Route not found' })
+    }
+
+    // Chuyển đổi dữ liệu tuyến đường từ JSON sang obj JS
+    let route = JSON.parse(routeData.data)
+    if (!route || !route.id) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Route not found' })
+    }
+
+    await redis.hDel(`user:${studentId}`, 'routeId')
+
+    route.students = route.students.filter((item) => item.student_id !== studentId)
+    await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(route))
+
+    return res.status(StatusCodes.OK).json({ message: 'Hủy đăng ký thành công' })
   } catch (error) {
     next(error)
   }
@@ -507,5 +532,6 @@ export const userController = {
   getAllParents,
   getAllChildrens,
   deleteUser,
-  updateUser
+  updateUser,
+  unRegisterRoute
 }
