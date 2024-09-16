@@ -51,6 +51,8 @@ router.post('/bus-route/:routeId/stop/confirm-dropoff', userController.confirmSt
 router.post('/register-student', userController.registerStudent)
 // chức năng phụ huynh đăng ký tuyến đường cho học sinh
 router.post('/register-route', userController.registerRoute)
+// chức năng phụ huynh hủy đăng ký tuyến đường
+router.post('/unregister-route', userController.unRegisterRoute)
 // Route để phụ huynh sửa thông tin học sinh
 router.put('/update-student/:studentId', userController.updateStudent)
 // Route để thay đổi điểm đón/trả của học sinh
