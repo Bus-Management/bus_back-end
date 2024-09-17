@@ -10,53 +10,22 @@ router.post('/login', authController.logIn)
 router.post('/sign-up', authController.signUp)
 router.post('/logout', authController.logout)
 
-// router.use(verifyToken)
-router.get('/read', userController.getAllUser)
-router.post('/create-route', userController.createBusRoute)
-router.delete('/delete-user/:userId', userController.deleteUser)
-router.put('/update-user/:userId', userController.updateUser)
-
-// chức năng xem tất cả các route
-router.get('/bus-route', userController.getAllBusRoutes)
-
-// chức năng xem tất cả tài xế
-router.get('/driver', userController.getAllDrivers)
-// chức năng xem tất cả tài xế
-router.get('/parent', userController.getAllParents)
-// chức năng xem tất cả tài xế
-router.get('/children', userController.getAllChildrens)
-// chức năng xóa tuyến xe
-router.delete('/delete-bus-route/:routeId', userController.deleteBusRoute)
-
-// chức năng xem chi tiet lịch trình của tài xế
-router.get('/detail/bus-route/:id', userController.getDetailBusRoute)
-// chức năng xem danh sách lịch trình của tài xế
-router.get('/driver/:driverId/assigned-route', userController.getAssignedBusRoute)
-// router.get('/driver/:driverId/assigned-route', checkUserPermission('Tài xế'), userController.getAssignedBusRoute)
-
-// chức năng xem danh sách điểm đón/trả học sinh
-router.get('/bus-route/:routeId/stops', userController.getBusRouteStops)
-
-// chức năng chỉnh sửa thông tin tuyến xe
-router.put('/bus-route/:routeId', userController.updateBusRoute)
-
-// chức năng xác nhận đón học sinh tại điểm dừng
-router.post('/bus-route/:routeId/stop/confirm-pickup', userController.confirmStudentPickup)
-
-// chức năng xác nhận trả học sinh tại điểm dừng
-router.post('/bus-route/:routeId/stop/confirm-dropoff', userController.confirmStudentDropoff)
-
-// ------------------------------------Student
+router.use(verifyToken)
 // chức năng phụ huynh đăng ký thông tin học sinh
 router.post('/register-student', userController.registerStudent)
-// chức năng phụ huynh đăng ký tuyến xe cho học sinh
-router.post('/register-route', userController.registerRoute)
-// chức năng phụ huynh hủy đăng ký tuyến xe
-router.post('/unregister-route', userController.unRegisterRoute)
 // Route để phụ huynh sửa thông tin học sinh
 router.put('/update-student/:studentId', userController.updateStudent)
 // Route để thay đổi điểm đón/trả của học sinh
 router.put('/stops/:studentId', userController.updateStudentStops)
 router.get('/student/:id', userController.getDetailUser)
+
+router.get('/driver', userController.getAllDrivers)
+router.get('/parent', userController.getAllParents)
+router.put('/update-user/:userId', userController.updateUser)
+router.get('/children', checkUserPermission('Tài xế', 'Phụ huynh'), userController.getAllChildrens)
+
+router.use(checkUserPermission('Admin'))
+router.get('/read', userController.getAllUser)
+router.delete('/delete-user/:userId', userController.deleteUser)
 
 export const userRoute = router
