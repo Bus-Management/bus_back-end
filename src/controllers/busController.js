@@ -15,10 +15,16 @@ const getAllBusRoutes = async (req, res, next) => {
     // Lặp qua từng khóa để kiểm tra driver_id
     for (const key of busRouteKeys) {
       const busRoute = await redis.hGetAll(key)
-      allRoutes.push(JSON.parse(busRoute.data))
+      allRoutes.push(busRoute)
     }
+    const newArr = allRoutes.map((item) => {
+      return {
+        ...item,
+        stops: JSON.parse(item.stops)
+      }
+    })
 
-    return res.status(StatusCodes.OK).json(allRoutes)
+    return res.status(StatusCodes.OK).json(newArr)
   } catch (error) {
     next(error)
   }
@@ -33,11 +39,12 @@ const createBusRoute = async (req, res, next) => {
     const newRoute = {
       id: routeId,
       ...req.body,
-      students: []
+      stops: JSON.stringify(req.body.stops),
+      students: JSON.stringify([])
     }
 
     // Lưu từng trường của newRoute vào Redis dưới dạng các field riêng biệt
-    await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(newRoute))
+    await redis.hSet(`bus_routes:${routeId}`, newRoute)
 
     return res.status(201).json({ message: 'Tạo tuyến xe thành công', route: newRoute })
   } catch (error) {
@@ -52,7 +59,7 @@ const getBusRouteStops = async (req, res, next) => {
     // Lấy thông tin tuyến xe từ Redis
     const busRoute = await redis.hGetAll(`bus_routes:${routeId}`)
 
-    if (!busRoute || Object.keys(busRoute).length === 0) {
+    if (!busRoute) {
       return res.status(404).json({ message: 'Bus route not found' })
     }
 
@@ -86,7 +93,12 @@ const getDetailBusRoute = async (req, res, next) => {
     if (!route) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Route not found' })
     }
-    res.status(StatusCodes.OK).json(JSON.parse(route.data))
+    const parsedRoute = {
+      ...route,
+      stops: JSON.parse(route.stops),
+      students: JSON.parse(route.students)
+    }
+    res.status(StatusCodes.OK).json(parsedRoute)
   } catch (error) {
     next(error)
   }
@@ -95,7 +107,6 @@ const getDetailBusRoute = async (req, res, next) => {
 const updateBusRoute = async (req, res, next) => {
   try {
     const { routeId } = req.params
-    const updatedData = req.body
 
     // Kiểm tra xem tuyến xe có tồn tại trong Redis hay không
     const routeExists = await redis.exists(`bus_routes:${routeId}`)
@@ -103,18 +114,15 @@ const updateBusRoute = async (req, res, next) => {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Tuyến xe không tồn tại' })
     }
 
-    // Lấy dữ liệu tuyến xe hiện tại từ Redis
-    const currentRoute = await redis.hGetAll(`bus_routes:${routeId}`)
-
     const updateRoute = {
-      ...JSON.parse(currentRoute.data),
-      ...updatedData
+      ...req.body,
+      stops: JSON.stringify(req.body.stops)
     }
 
     // // Lưu dữ liệu cập nhật vào Redis
-    await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(updateRoute))
+    await redis.hSet(`bus_routes:${routeId}`, { ...updateRoute })
 
-    res.status(StatusCodes.OK).json(updateRoute)
+    res.status(StatusCodes.OK).json({ message: 'Thành công' })
   } catch (error) {
     next(error)
   }
@@ -132,13 +140,13 @@ const registerRoute = async (req, res, next) => {
     }
 
     // Chuyển đổi dữ liệu tuyến xe sang JSON
-    let route = JSON.parse(routeData.data)
+    let routeStudents = JSON.parse(routeData.students)
 
     // // Kiểm tra xem học sinh đã đăng ký chưa
-    const existingStudent = route.students.find((student) => student.student_id === studentId)
+    const existingStudent = routeStudents.find((student) => student.student_id === studentId)
 
     if (existingStudent) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Student already registered on this route' })
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Học sinh này đã đăng ký tuyến xe' })
     }
 
     const hasRouteId = await redis.hGetAll(`user:${studentId}`)
@@ -148,11 +156,12 @@ const registerRoute = async (req, res, next) => {
     await redis.hSet(`user:${studentId}`, { ...hasRouteId, routeId })
 
     // // Thêm học sinh mới vào danh sách students của tuyến xe
-    route.students.push({
+    routeStudents.push({
       student_id: studentId
     })
 
-    await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(route))
+    // await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(route))
+    await redis.hSet(`bus_routes:${routeId}`, { ...routeData, students: JSON.stringify(routeStudents) })
 
     return res.status(200).json({ message: 'Đăng ký tuyến xe thành công' })
   } catch (error) {
@@ -175,16 +184,15 @@ const unRegisterRoute = async (req, res, next) => {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Route not found' })
     }
 
-    // Chuyển đổi dữ liệu tuyến xe từ JSON sang obj JS
-    let route = JSON.parse(routeData.data)
-    if (!route || !route.id) {
+    if (!routeData || !routeData.id) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Route not found' })
     }
 
     await redis.hDel(`user:${studentId}`, 'routeId')
 
-    route.students = route.students.filter((item) => item.student_id !== studentId)
-    await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(route))
+    let listStudents = JSON.parse(routeData.students)
+    listStudents = listStudents.filter((item) => item.student_id !== studentId)
+    await redis.hSet(`bus_routes:${routeId}`, { ...routeData, students: JSON.stringify(listStudents) })
 
     return res.status(StatusCodes.OK).json({ message: 'Hủy đăng ký thành công' })
   } catch (error) {
@@ -197,19 +205,15 @@ const getAssignedBusRoute = async (req, res, next) => {
   try {
     const { driverId } = req.params
 
-    // Lấy tất cả các khóa bus_routes từ Redis
     const busRouteKeys = await redis.keys('bus_routes:*')
 
-    // // Khởi tạo mảng để lưu trữ các tuyến xe của tài xế
     const assignedRoutes = []
 
-    // Lặp qua từng khóa để kiểm tra driver_id
     for (const key of busRouteKeys) {
       const busRoute = await redis.hGetAll(key)
-      const dataBusRoute = JSON.parse(busRoute.data)
 
-      if (dataBusRoute.driver_id === driverId) {
-        assignedRoutes.push(dataBusRoute)
+      if (busRoute.driver_id === driverId) {
+        assignedRoutes.push(busRoute)
       }
     }
 

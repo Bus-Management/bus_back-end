@@ -139,8 +139,7 @@ const updateStudent = async (req, res, next) => {
 
     // Cập nhật thông tin học sinh
     await redis.hSet(`user:${studentId}`, {
-      ...req.body,
-      role: 'Học sinh'
+      ...req.body
     })
 
     // Trả về thông tin học sinh đã cập nhật
@@ -282,10 +281,10 @@ const updateUser = async (req, res, next) => {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Người dùng không tồn tại' })
     }
 
-    if (updatedData.phone) {
+    const oldPhone = await redis.hGet(`user:${userId}`, 'phone')
+    if (oldPhone !== updatedData.phone) {
+      await redis.hDel('phones', oldPhone, userId)
       await redis.hSet('phones', updatedData.phone, userId)
-      const user = await redis.hGetAll(`user:${userId}`)
-      await redis.hDel('phones', user.phone)
     }
 
     await redis.hSet(`user:${userId}`, {
