@@ -24,8 +24,7 @@ router.get('/parent', userController.getAllParents)
 router.put('/update-user/:userId', userController.updateUser)
 router.get('/children', checkUserPermission('Tài xế', 'Phụ huynh'), userController.getAllChildrens)
 
-router.use(checkUserPermission('Admin'))
-router.get('/read', userController.getAllUser)
-router.delete('/delete-user/:userId', userController.deleteUser)
+router.get('/read', checkUserPermission('Admin'), userController.getAllUser)
+router.delete('/delete-user/:userId', checkUserPermission('Admin', 'Phụ huynh'), userController.deleteUser)
 
 export const userRoute = router

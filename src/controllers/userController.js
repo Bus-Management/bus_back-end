@@ -99,9 +99,6 @@ const confirmStudentDropoff = async (req, res, next) => {
 
 const registerStudent = async (req, res, next) => {
   try {
-    // const { userId } = req.user
-
-    // Tạo một ID duy nhất cho học sinh
     const studentId = uuidv4()
 
     // Lưu thông tin học sinh vào Redis dưới dạng một user mới
