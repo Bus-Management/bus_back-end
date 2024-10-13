@@ -10,9 +10,7 @@ const createBus = async (req, res, next) => {
 
     const newBus = {
       id: busId,
-      ...req.body,
-      studentIds: JSON.stringify([]),
-      active: 1
+      ...req.body
     }
 
     await redis.hSet(`bus:${busId}`, newBus)

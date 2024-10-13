@@ -60,10 +60,8 @@ const getBusRoutesAssigned = async (req, res, next) => {
 
 const createBusRoute = async (req, res, next) => {
   try {
-    // Tạo một ID duy nhất cho tuyến xe
     const routeId = uuidv4()
 
-    // Tạo cấu trúc dữ liệu tuyến xe mới
     const newRoute = {
       id: routeId,
       ...req.body,
@@ -82,9 +80,13 @@ const createBusRoute = async (req, res, next) => {
     await redis.hSet(`bus_routes:${routeId}`, newRoute)
 
     const bus = await redis.hGetAll(`bus:${req.body.bus_id}`)
-    await redis.hSet(`bus:${req.body.bus_id}`, { ...bus, routeId: routeId, active: 0 })
+    await redis.hSet(`bus:${req.body.bus_id}`, { ...bus, routeId: routeId })
 
-    return res.status(201).json({ message: 'Tạo tuyến xe thành công', route: newRoute })
+    let listRouteIds = JSON.parse(await redis.hGet(`user:${bus.driverId}`, 'routeIds'))
+    listRouteIds.push(routeId)
+    await redis.hSet(`user:${bus.driverId}`, 'routeIds', JSON.stringify(listRouteIds))
+
+    return res.status(StatusCodes.CREATED).json({ message: 'Tạo tuyến xe thành công', route: newRoute })
   } catch (error) {
     next(error)
   }
@@ -252,14 +254,15 @@ const getAssignedBusRoute = async (req, res, next) => {
 
     for (const key of busRouteKeys) {
       const busRoute = await redis.hGetAll(key)
+      const driver_id = await redis.hGet(`bus:${busRoute.bus_id}`, 'driverId')
 
-      if (busRoute.driver_id === driverId) {
+      if (driver_id === driverId) {
         assignedRoutes.push(busRoute)
       }
     }
 
     if (assignedRoutes.length === 0) {
-      return res.status(404).json({ message: 'No bus routes assigned to this driver' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'No bus routes assigned to this driver' })
     }
 
     return res.status(StatusCodes.OK).json({
