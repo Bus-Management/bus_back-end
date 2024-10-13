@@ -14,7 +14,14 @@ const signUp = async (req, res, next) => {
       ...req.body,
       password: await bcrypt.hash(req.body.password, 10)
     })
-    // Lưu ánh xạ userName đến userId
+    const user = await redis.hGetAll(`user:${userId}`)
+
+    if (user.role === 'parent') {
+      await redis.hSet(`user:${userId}`, {
+        ...user,
+        studentIds: JSON.stringify([])
+      })
+    }
     await redis.hSet('phones', req.body.phone, userId)
     return res.status(StatusCodes.OK).json({ message: 'Tạo tài khoản thành công' })
   } catch (error) {

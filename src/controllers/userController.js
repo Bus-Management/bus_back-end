@@ -101,22 +101,22 @@ const registerStudent = async (req, res, next) => {
   try {
     const studentId = uuidv4()
 
-    // Lưu thông tin học sinh vào Redis dưới dạng một user mới
     await redis.hSet(`user:${studentId}`, {
       id: studentId,
       ...req.body,
-      role: 'Học sinh'
+      role: 'student'
     })
 
-    // Thêm học sinh vào danh sách học sinh của phụ huynh trong Redis
-    await redis.sAdd(`user:${req.body.parentId}:children`, studentId)
+    const parent = await redis.hGetAll(`user:${req.body.parentId}`)
+    let listStudentIds = JSON.parse(parent.studentIds)
+    listStudentIds.push(studentId)
+    await redis.hSet(`user:${req.body.parentId}`, {
+      ...parent,
+      studentIds: JSON.stringify(listStudentIds)
+    })
 
-    // Trả về thông tin học sinh đã đăng ký
-    const student = await redis.hGetAll(`user:${studentId}`)
-
-    return res.status(201).json({
-      message: 'Đăng ký tài khoản thành công',
-      student
+    return res.status(StatusCodes.CREATED).json({
+      message: 'Đăng ký tài khoản thành công'
     })
   } catch (error) {
     next(error)
@@ -198,7 +198,7 @@ const getAllDrivers = async (req, res, next) => {
     for (const key of filteredUsers) {
       const user = await redis.hGetAll(key)
       user.password = undefined
-      if (user.role === 'Tài xế') {
+      if (user.role === 'driver') {
         drivers.push(user)
       }
     }
@@ -219,7 +219,7 @@ const getAllParents = async (req, res, next) => {
     for (const key of filteredUsers) {
       const user = await redis.hGetAll(key)
       user.password = undefined
-      if (user.role === 'Phụ huynh') {
+      if (user.role === 'parent') {
         parents.push(user)
       }
     }
@@ -240,7 +240,7 @@ const getAllChildrens = async (req, res, next) => {
     for (const key of filteredUsers) {
       const user = await redis.hGetAll(key)
       user.password = undefined
-      if (user.role === 'Học sinh') {
+      if (user.role === 'student') {
         childrens.push(user)
       }
     }
@@ -261,6 +261,32 @@ const deleteUser = async (req, res, next) => {
     }
 
     await redis.del(`user:${userId}`)
+
+    return res.status(StatusCodes.OK).json({ message: 'Xóa thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const deleteStudent = async (req, res, next) => {
+  try {
+    const { studentId } = req.params
+    const { id, studentIds } = req.user
+
+    const routeExists = await redis.exists(`user:${studentId}`)
+    if (!routeExists) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'User not found' })
+    }
+
+    await redis.del(`user:${studentId}`)
+
+    let listStudents = JSON.parse(studentIds)
+    listStudents = listStudents.filter((item) => item !== studentId)
+
+    await redis.hSet(`user:${id}`, {
+      ...req.user,
+      studentIds: JSON.stringify(listStudents)
+    })
 
     return res.status(StatusCodes.OK).json({ message: 'Xóa thành công' })
   } catch (error) {
@@ -306,5 +332,6 @@ export const userController = {
   getAllParents,
   getAllChildrens,
   deleteUser,
+  deleteStudent,
   updateUser
 }
