@@ -112,7 +112,7 @@ const registerStudent = async (req, res, next) => {
     listStudentIds.push(studentId)
     await redis.hSet(`user:${req.body.parentId}`, {
       ...parent,
-      studentIds: JSON.stringify(listStudentIds)
+      childrenIds: JSON.stringify(listStudentIds)
     })
 
     return res.status(StatusCodes.CREATED).json({

@@ -32,6 +32,32 @@ const getAllBusRoutes = async (req, res, next) => {
   }
 }
 
+const getBusRoutesAssigned = async (req, res, next) => {
+  try {
+    const parent = await redis.hGetAll(`user:${req.user.id}`)
+
+    if (!parent || parent.role !== 'parent') {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Phụ huynh không tồn tại hoặc không hợp lệ' })
+    }
+
+    const childrenIds = JSON.parse(parent.childrenIds || '[]')
+
+    if (childrenIds.length === 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Phụ huynh chưa có con cái nào đăng ký tuyến xe' })
+    }
+
+    const routesKeys = await redis.keys('bus_routes:*')
+    const routes = await Promise.all(routesKeys.map((key) => redis.hGetAll(key)))
+
+    // Lọc ra những bus-routes mà có con cái của phụ huynh đã đăng ký
+    const parentRoutes = routes.filter((route) => childrenIds.some((childId) => JSON.parse(route.studentIds || '[]').includes(childId)))
+
+    return res.status(StatusCodes.OK).json(parentRoutes)
+  } catch (error) {
+    next(error)
+  }
+}
+
 const createBusRoute = async (req, res, next) => {
   try {
     // Tạo một ID duy nhất cho tuyến xe
@@ -50,7 +76,7 @@ const createBusRoute = async (req, res, next) => {
         lat: req.body.end_point[1]
       }),
       stops: JSON.stringify(req.body.stops),
-      students: JSON.stringify([])
+      studentIds: JSON.stringify([])
     }
 
     await redis.hSet(`bus_routes:${routeId}`, newRoute)
@@ -113,7 +139,7 @@ const getDetailBusRoute = async (req, res, next) => {
       driverName,
       license_plate: bus.license_plate,
       stops: JSON.parse(route.stops),
-      students: JSON.parse(route.students)
+      studentIds: JSON.parse(route.studentIds)
     }
 
     return res.status(StatusCodes.OK).json(parsedRoute)
@@ -158,10 +184,10 @@ const registerRoute = async (req, res, next) => {
     }
 
     // Chuyển đổi dữ liệu tuyến xe sang JSON
-    let routeStudents = JSON.parse(routeData.students)
+    let routeStudents = JSON.parse(routeData.studentIds)
 
     // // Kiểm tra xem học sinh đã đăng ký chưa
-    const existingStudent = routeStudents.find((student) => student.student_id === studentId)
+    const existingStudent = routeStudents.find((student) => student === studentId)
 
     if (existingStudent) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Học sinh này đã đăng ký tuyến xe' })
@@ -173,13 +199,10 @@ const registerRoute = async (req, res, next) => {
     }
     await redis.hSet(`user:${studentId}`, { ...hasRouteId, routeId })
 
-    // // Thêm học sinh mới vào danh sách students của tuyến xe
-    routeStudents.push({
-      student_id: studentId
-    })
+    routeStudents.push(studentId)
 
     // await redis.hSet(`bus_routes:${routeId}`, 'data', JSON.stringify(route))
-    await redis.hSet(`bus_routes:${routeId}`, { ...routeData, students: JSON.stringify(routeStudents) })
+    await redis.hSet(`bus_routes:${routeId}`, { ...routeData, studentIds: JSON.stringify(routeStudents) })
 
     return res.status(200).json({ message: 'Đăng ký tuyến xe thành công' })
   } catch (error) {
@@ -208,9 +231,9 @@ const unRegisterRoute = async (req, res, next) => {
 
     await redis.hDel(`user:${studentId}`, 'routeId')
 
-    let listStudents = JSON.parse(routeData.students)
-    listStudents = listStudents.filter((item) => item.student_id !== studentId)
-    await redis.hSet(`bus_routes:${routeId}`, { ...routeData, students: JSON.stringify(listStudents) })
+    let listStudents = JSON.parse(routeData.studentIds)
+    listStudents = listStudents.filter((item) => item !== studentId)
+    await redis.hSet(`bus_routes:${routeId}`, { ...routeData, studentIds: JSON.stringify(listStudents) })
 
     return res.status(StatusCodes.OK).json({ message: 'Hủy đăng ký thành công' })
   } catch (error) {
@@ -247,6 +270,16 @@ const getAssignedBusRoute = async (req, res, next) => {
   }
 }
 
+const updateRouteStatus = async (req, res, next) => {
+  try {
+    const { routeId, status } = req.body
+    await redis.hSet(`bus_routes:${routeId}`, 'status', status)
+    return res.status(StatusCodes.OK).json({ message: 'Cập nhật trạng thái thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const busRouteController = {
   createBusRoute,
   getBusRouteStops,
@@ -256,5 +289,7 @@ export const busRouteController = {
   updateBusRoute,
   registerRoute,
   unRegisterRoute,
-  getAssignedBusRoute
+  getAssignedBusRoute,
+  updateRouteStatus,
+  getBusRoutesAssigned
 }

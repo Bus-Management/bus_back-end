@@ -19,7 +19,7 @@ const signUp = async (req, res, next) => {
     if (user.role === 'parent') {
       await redis.hSet(`user:${userId}`, {
         ...user,
-        studentIds: JSON.stringify([])
+        childrenIds: JSON.stringify([])
       })
     }
     await redis.hSet('phones', req.body.phone, userId)
