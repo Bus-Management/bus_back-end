@@ -104,11 +104,12 @@ const registerStudent = async (req, res, next) => {
     await redis.hSet(`user:${studentId}`, {
       id: studentId,
       ...req.body,
-      role: 'student'
+      role: 'student',
+      status: ''
     })
 
     const parent = await redis.hGetAll(`user:${req.body.parentId}`)
-    let listStudentIds = JSON.parse(parent.studentIds)
+    let listStudentIds = JSON.parse(parent.childrenIds)
     listStudentIds.push(studentId)
     await redis.hSet(`user:${req.body.parentId}`, {
       ...parent,
@@ -125,21 +126,17 @@ const registerStudent = async (req, res, next) => {
 
 const updateStudent = async (req, res, next) => {
   try {
-    // const { userId } = req.user // ID của phụ huynh từ token hoặc session
     const { studentId } = req.params
 
-    // Kiểm tra xem học sinh có thuộc về phụ huynh không
     const student = await redis.hGetAll(`user:${studentId}`)
     if (!student || student.parentId !== req.body.parentId) {
       return res.status(StatusCodes.FORBIDDEN).json({ message: 'Access denied' })
     }
 
-    // Cập nhật thông tin học sinh
     await redis.hSet(`user:${studentId}`, {
       ...req.body
     })
 
-    // Trả về thông tin học sinh đã cập nhật
     const updatedStudent = await redis.hGetAll(`user:${studentId}`)
 
     return res.status(200).json({
@@ -233,14 +230,13 @@ const getAllParents = async (req, res, next) => {
 const getAllChildrens = async (req, res, next) => {
   try {
     const allUserKeys = await redis.keys('user:*')
-    const filteredUsers = allUserKeys.filter((user) => !user.includes('children'))
 
     const childrens = []
 
-    for (const key of filteredUsers) {
+    for (const key of allUserKeys) {
       const user = await redis.hGetAll(key)
       user.password = undefined
-      if (user.role === 'student') {
+      if (user.role === 'student' && user.parentId === req.user.id) {
         childrens.push(user)
       }
     }
@@ -271,7 +267,7 @@ const deleteUser = async (req, res, next) => {
 const deleteStudent = async (req, res, next) => {
   try {
     const { studentId } = req.params
-    const { id, studentIds } = req.user
+    const { id, childrenIds } = req.user
 
     const routeExists = await redis.exists(`user:${studentId}`)
     if (!routeExists) {
@@ -280,12 +276,12 @@ const deleteStudent = async (req, res, next) => {
 
     await redis.del(`user:${studentId}`)
 
-    let listStudents = JSON.parse(studentIds)
+    let listStudents = JSON.parse(childrenIds)
     listStudents = listStudents.filter((item) => item !== studentId)
 
     await redis.hSet(`user:${id}`, {
       ...req.user,
-      studentIds: JSON.stringify(listStudents)
+      childrenIds: JSON.stringify(listStudents)
     })
 
     return res.status(StatusCodes.OK).json({ message: 'Xóa thành công' })
@@ -320,6 +316,23 @@ const updateUser = async (req, res, next) => {
   }
 }
 
+const updateStatusUser = async (req, res, next) => {
+  try {
+    const { studentId, status } = req.body
+
+    const userExists = await redis.exists(`user:${studentId}`)
+    if (!userExists) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Người dùng không tồn tại' })
+    }
+
+    await redis.hSet(`user:${studentId}`, 'status', status)
+
+    return res.status(StatusCodes.OK).json({ message: 'Cập nhật thông tin thành công' })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   confirmStudentPickup,
@@ -333,5 +346,6 @@ export const userController = {
   getAllChildrens,
   deleteUser,
   deleteStudent,
-  updateUser
+  updateUser,
+  updateStatusUser
 }

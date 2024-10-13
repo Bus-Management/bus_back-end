@@ -12,18 +12,20 @@ router.post('/logout', authController.logout)
 
 router.use(verifyToken)
 // chức năng phụ huynh đăng ký thông tin học sinh
+router.get('/children', checkUserPermission('driver', 'parent'), userController.getAllChildrens)
+router.get('/:id', userController.getDetailUser)
+router.get('/driver', userController.getAllDrivers)
+router.get('/parent', userController.getAllParents)
+
 router.post('/register-student', userController.registerStudent)
-router.delete('/delete-student/:studentId', checkUserPermission('parent'), userController.deleteStudent)
 // Route để phụ huynh sửa thông tin học sinh
 router.put('/update-student/:studentId', userController.updateStudent)
 // Route để thay đổi điểm đón/trả của học sinh
 router.put('/stops/:studentId', userController.updateStudentStops)
-router.get('/student/:id', userController.getDetailUser)
 
-router.get('/driver', userController.getAllDrivers)
-router.get('/parent', userController.getAllParents)
 router.put('/update-user/:userId', userController.updateUser)
-router.get('/children', checkUserPermission('driver', 'parent'), userController.getAllChildrens)
+router.put('/update-status-user', userController.updateStatusUser)
+router.delete('/delete-student/:studentId', checkUserPermission('parent'), userController.deleteStudent)
 
 router.get('/read', checkUserPermission('Admin'), userController.getAllUser)
 router.delete('/delete-user/:userId', checkUserPermission('Admin'), userController.deleteUser)
