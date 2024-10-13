@@ -21,6 +21,11 @@ const signUp = async (req, res, next) => {
         ...user,
         childrenIds: JSON.stringify([])
       })
+    } else if (user.role === 'driver') {
+      await redis.hSet(`user:${userId}`, {
+        ...user,
+        routeIds: JSON.stringify([])
+      })
     }
     await redis.hSet('phones', req.body.phone, userId)
     return res.status(StatusCodes.OK).json({ message: 'Tạo tài khoản thành công' })
