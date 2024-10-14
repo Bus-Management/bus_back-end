@@ -8,8 +8,9 @@ const router = express.Router()
 router.use(verifyToken)
 // chức năng xem tất cả các route
 router.get('/', busRouteController.getAllBusRoutes)
-router.get('/route-completed', busRouteController.getAllBusRoutesNoComplete)
+router.get('/route-no-completed', busRouteController.getAllBusRoutesNoComplete)
 router.get('/assigned-student', busRouteController.getBusRoutesAssigned)
+router.get('/assigned-student-completed', busRouteController.getBusRoutesAssignedCompleted)
 // chức năng xem danh sách điểm đón/trả học sinh
 router.get('/bus-route/:routeId/stops', busRouteController.getBusRouteStops)
 // chức năng xem chi tiet lịch trình của tài xế
