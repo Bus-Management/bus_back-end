@@ -186,7 +186,6 @@ const getDetailUser = async (req, res, next) => {
 
 const getAllDrivers = async (req, res, next) => {
   try {
-    // Lấy tất cả khóa user
     const allUserKeys = await redis.keys('user:*')
     const filteredUsers = allUserKeys.filter((user) => !user.includes('children'))
 
@@ -209,11 +208,10 @@ const getAllDrivers = async (req, res, next) => {
 const getAllParents = async (req, res, next) => {
   try {
     const allUserKeys = await redis.keys('user:*')
-    const filteredUsers = allUserKeys.filter((user) => !user.includes('children'))
 
     const parents = []
 
-    for (const key of filteredUsers) {
+    for (const key of allUserKeys) {
       const user = await redis.hGetAll(key)
       user.password = undefined
       if (user.role === 'parent') {
