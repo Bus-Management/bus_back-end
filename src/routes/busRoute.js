@@ -7,7 +7,8 @@ const router = express.Router()
 
 router.use(verifyToken)
 // chức năng xem tất cả các route
-router.get('/bus-route', busRouteController.getAllBusRoutes)
+router.get('/', busRouteController.getAllBusRoutes)
+router.get('/route-completed', busRouteController.getAllBusRoutesNoComplete)
 router.get('/assigned-student', busRouteController.getBusRoutesAssigned)
 // chức năng xem danh sách điểm đón/trả học sinh
 router.get('/bus-route/:routeId/stops', busRouteController.getBusRouteStops)
@@ -19,8 +20,10 @@ router.post('/register-route', busRouteController.registerRoute)
 router.post('/unregister-route', busRouteController.unRegisterRoute)
 // chức năng xem danh sách lịch trình của tài xế
 router.get('/driver/:driverId/assigned-route', busRouteController.getAssignedBusRoute)
+router.get('/driver-completed/:driverId', busRouteController.getBusRouteDriverCompleted)
 
 router.put('/update-route-status', busRouteController.updateRouteStatus)
+router.put('/complete', busRouteController.updateCompleteRoute)
 
 router.use(checkUserPermission('Admin'))
 router.post('/create-route', busRouteController.createBusRoute)
