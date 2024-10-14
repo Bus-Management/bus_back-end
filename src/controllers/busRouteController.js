@@ -231,9 +231,16 @@ const updateBusRoute = async (req, res, next) => {
 
     const updateRoute = {
       ...req.body,
+      studentIds: JSON.stringify(req.body.studentIds),
       start_point: JSON.stringify(req.body.start_point),
       end_point: JSON.stringify(req.body.end_point),
       stops: JSON.stringify(req.body.stops)
+    }
+    const currentDate = new Date().toLocaleString().split(',')[0]
+    const startDate = new Date(updateRoute.start_day).toLocaleString().split(',')[0]
+
+    if (startDate < currentDate) {
+      updateRoute.status = 'completed'
     }
 
     await redis.hSet(`bus_routes:${updateRoute.id}`, updateRoute)
