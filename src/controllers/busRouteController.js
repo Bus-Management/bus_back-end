@@ -38,11 +38,14 @@ const getAllBusRoutesNoComplete = async (req, res, next) => {
     for (const key of busRouteKeys) {
       const busRoute = await redis.hGetAll(key)
       if (busRoute.status !== 'completed') {
+        const driverId = await redis.hGet(`bus:${busRoute.bus_id}`, 'driverId')
+        const avatar = await redis.hGet(`user:${driverId}`, 'avatar')
         allRoutes.push({
           ...busRoute,
           stops: JSON.parse(busRoute.stops),
           start_point: JSON.parse(busRoute.start_point),
-          end_point: JSON.parse(busRoute.end_point)
+          end_point: JSON.parse(busRoute.end_point),
+          avatar
         })
       }
     }
@@ -64,7 +67,7 @@ const getBusRoutesAssigned = async (req, res, next) => {
     const childrenIds = JSON.parse(parent.childrenIds || '[]')
 
     if (childrenIds.length === 0) {
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Phụ huynh chưa có con cái nào đăng ký tuyến xe' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Phụ huynh chưa thể đăng ký tuyến xe' })
     }
 
     const routesKeys = await redis.keys('bus_routes:*')
@@ -73,7 +76,53 @@ const getBusRoutesAssigned = async (req, res, next) => {
     // Lọc ra những bus-routes mà có con cái của phụ huynh đã đăng ký
     const parentRoutes = routes.filter((route) => childrenIds.some((childId) => JSON.parse(route.studentIds || '[]').includes(childId)))
 
-    return res.status(StatusCodes.OK).json(parentRoutes)
+    const parentRoutesNoCompleted = parentRoutes.filter((route) => route.status !== 'completed')
+    if (parentRoutesNoCompleted.length == 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Chưa có lịch trình cần theo dõi' })
+    }
+
+    return res.status(StatusCodes.OK).json(parentRoutesNoCompleted)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getBusRoutesAssignedCompleted = async (req, res, next) => {
+  try {
+    const parent = await redis.hGetAll(`user:${req.user.id}`)
+
+    if (!parent || parent.role !== 'parent') {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Phụ huynh không tồn tại hoặc không hợp lệ' })
+    }
+
+    const childrenIds = JSON.parse(parent.childrenIds || '[]')
+
+    if (childrenIds.length === 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Phụ huynh chưa thể đăng ký tuyến xe' })
+    }
+
+    const routesKeys = await redis.keys('bus_routes:*')
+    const routes = await Promise.all(routesKeys.map(async (key) => await redis.hGetAll(key)))
+
+    // Lọc ra những bus-routes mà có con cái của phụ huynh đã đăng ký
+    const parentRoutes = routes.filter((route) => childrenIds.some((childId) => JSON.parse(route.studentIds || '[]').includes(childId)))
+
+    const newParentRoutesCplted = await Promise.all(
+      parentRoutes.map(async (item) => {
+        const driverId = await redis.hGet(`bus:${item.bus_id}`, 'driverId')
+        const avatar = await redis.hGet(`user:${driverId}`, 'avatar')
+        return {
+          ...item,
+          avatar
+        }
+      })
+    )
+
+    if (newParentRoutesCplted.length == 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Chưa có tuyến đường hoàn thành' })
+    }
+
+    return res.status(StatusCodes.OK).json(newParentRoutesCplted.filter((item) => item.status === 'completed'))
   } catch (error) {
     next(error)
   }
@@ -331,6 +380,7 @@ const updateCompleteRoute = async (req, res, next) => {
     const listStudents = JSON.parse(route.studentIds)
     for (const key of listStudents) {
       await redis.hSet(`user:${key}`, 'status', '')
+      await redis.hSet(`user:${key}`, 'routeId', '')
     }
 
     return res.status(StatusCodes.OK).json({ message: 'Chúc mừng bạn đã hoàn thành tuyến đường' })
@@ -362,6 +412,7 @@ export const busRouteController = {
   updateRouteStatus,
   updateCompleteRoute,
   getBusRoutesAssigned,
+  getBusRoutesAssignedCompleted,
   getBusRouteDriverCompleted,
   getAllBusRoutesNoComplete
 }
