@@ -6,13 +6,10 @@ import { redis } from '~/config/connectRedis'
 
 const getAllBusRoutes = async (req, res, next) => {
   try {
-    // Lấy tất cả các khóa bus_routes từ Redis
     const busRouteKeys = await redis.keys('bus_routes:*')
 
-    // // Khởi tạo mảng để lưu trữ các tuyến xe của tài xế
     const allRoutes = []
 
-    // Lặp qua từng khóa để kiểm tra driver_id
     for (const key of busRouteKeys) {
       const busRoute = await redis.hGetAll(key)
       allRoutes.push(busRoute)
@@ -27,6 +24,30 @@ const getAllBusRoutes = async (req, res, next) => {
     })
 
     return res.status(StatusCodes.OK).json(newArr)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getAllBusRoutesNoComplete = async (req, res, next) => {
+  try {
+    const busRouteKeys = await redis.keys('bus_routes:*')
+
+    const allRoutes = []
+
+    for (const key of busRouteKeys) {
+      const busRoute = await redis.hGetAll(key)
+      if (busRoute.status !== 'completed') {
+        allRoutes.push({
+          ...busRoute,
+          stops: JSON.parse(busRoute.stops),
+          start_point: JSON.parse(busRoute.start_point),
+          end_point: JSON.parse(busRoute.end_point)
+        })
+      }
+    }
+
+    return res.status(StatusCodes.OK).json(allRoutes)
   } catch (error) {
     next(error)
   }
@@ -256,18 +277,63 @@ const getAssignedBusRoute = async (req, res, next) => {
       const busRoute = await redis.hGetAll(key)
       const driver_id = await redis.hGet(`bus:${busRoute.bus_id}`, 'driverId')
 
-      if (driver_id === driverId) {
+      if (driver_id === driverId && busRoute.status !== 'completed') {
+        assignedRoutes.push(busRoute)
+      }
+    }
+
+    return res.status(StatusCodes.OK).json(assignedRoutes)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getBusRouteDriverCompleted = async (req, res, next) => {
+  try {
+    const { driverId } = req.params
+
+    const busRouteKeys = await redis.keys('bus_routes:*')
+
+    const assignedRoutes = []
+
+    for (const key of busRouteKeys) {
+      const busRoute = await redis.hGetAll(key)
+      const driver_id = await redis.hGet(`bus:${busRoute.bus_id}`, 'driverId')
+
+      if (driver_id === driverId && busRoute.status === 'completed') {
         assignedRoutes.push(busRoute)
       }
     }
 
     if (assignedRoutes.length === 0) {
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'No bus routes assigned to this driver' })
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Chưa có tuyến đường nào hoàn thành' })
     }
 
-    return res.status(StatusCodes.OK).json({
-      assignedRoutes
+    return res.status(StatusCodes.OK).json(assignedRoutes)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const updateCompleteRoute = async (req, res, next) => {
+  try {
+    const { routeId } = req.body
+    const date = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' })
+
+    const route = await redis.hGetAll(`bus_routes:${routeId}`)
+
+    await redis.hSet(`bus_routes:${routeId}`, {
+      ...route,
+      status: 'completed',
+      end_day: JSON.stringify(date)
     })
+
+    const listStudents = JSON.parse(route.studentIds)
+    for (const key of listStudents) {
+      await redis.hSet(`user:${key}`, 'status', '')
+    }
+
+    return res.status(StatusCodes.OK).json({ message: 'Chúc mừng bạn đã hoàn thành tuyến đường' })
   } catch (error) {
     next(error)
   }
@@ -294,5 +360,8 @@ export const busRouteController = {
   unRegisterRoute,
   getAssignedBusRoute,
   updateRouteStatus,
-  getBusRoutesAssigned
+  updateCompleteRoute,
+  getBusRoutesAssigned,
+  getBusRouteDriverCompleted,
+  getAllBusRoutesNoComplete
 }
