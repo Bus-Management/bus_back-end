@@ -15,6 +15,7 @@ router.get('/parent', userController.getAllParents)
 router.get('/read', userController.getAllUser)
 router.get('/driver', userController.getAllDrivers)
 router.get('/children', userController.getAllChildrens)
+router.get('/children-assigned-route-parent/:routeId', userController.getChildrensAssignedRoute)
 
 // chức năng phụ huynh đăng ký thông tin học sinh
 router.get('/:id', userController.getDetailUser)

@@ -331,6 +331,34 @@ const updateStatusUser = async (req, res, next) => {
   }
 }
 
+const getChildrensAssignedRoute = async (req, res, next) => {
+  try {
+    const routeId = req.params.routeId
+    const parentId = req.user.id
+
+    const studentIds = await redis.hGet(`bus_routes:${routeId}`, 'studentIds')
+    const childrenIds = await redis.hGet(`user:${parentId}`, 'childrenIds')
+
+    let newStudentIds = JSON.parse(studentIds)
+    let newChildrenIds = JSON.parse(childrenIds)
+
+    const listChildrensAssigned = newStudentIds?.filter((item) => newChildrenIds.includes(item))
+
+    const newListChildrensAssigned = await Promise.all(
+      listChildrensAssigned?.map(async (item) => {
+        const student = await redis.hGetAll(`user:${item}`)
+        return {
+          ...student
+        }
+      })
+    )
+
+    return res.status(StatusCodes.OK).json(newListChildrensAssigned)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   getAllUser,
   confirmStudentPickup,
@@ -345,5 +373,6 @@ export const userController = {
   deleteUser,
   deleteStudent,
   updateUser,
-  updateStatusUser
+  updateStatusUser,
+  getChildrensAssignedRoute
 }
